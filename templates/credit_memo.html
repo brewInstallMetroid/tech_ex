@@ -1,0 +1,293 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Customer Credit Memo</title>
+
+    <link rel="stylesheet" href="{% static 'css/cm.css' %}">
+</head>
+
+<body>
+
+<div class="window">
+
+    <div class="title-bar">
+        <span>Customer Credit Memo</span>
+    </div>
+
+    <div class="window-body">
+
+        <!-- CUSTOMER -->
+        <fieldset>
+            <legend>Customer</legend>
+
+            <div class="form-row">
+                <label for="customer-number">Customer #:</label>
+
+                <input
+                    id="customer-number"
+                    type="text"
+                    name="customer_number"
+                    placeholder="Enter customer #"
+                >
+
+                <button type="button" class="search-button" id="customer-search">
+                    Search...
+                </button>
+            </div>
+
+            <div class="form-row">
+                <label for="customer-name">Name:</label>
+
+                <input
+                    id="customer-name"
+                    class="wide-input"
+                    type="text"
+                    name="customer_name"
+                    readonly
+                >
+            </div>
+        </fieldset>
+
+
+        <!-- ITEM SEARCH -->
+        <fieldset>
+            <legend>Add Item</legend>
+
+            <div class="form-row">
+                <label for="item-number">Item #:</label>
+
+                <input
+                    id="item-number"
+                    type="text"
+                    name="item_number"
+                    placeholder="Enter item #"
+                >
+
+                <button type="button" class="search-button" id="item-search">
+                    Search...
+                </button>
+
+                <button type="button"
+			id = "add-item">
+                    Add Item
+                </button>
+            </div>
+	    <div class="form-row">
+		<label for="item-name">Description:</label>
+
+		<input
+		    id="item-name"
+		    class="wide-input"
+		    type="text"
+		    name="item_name"
+		    readonly
+		>
+	    </div>
+        </fieldset>
+
+
+        <!-- ITEM GRID -->
+        <fieldset>
+            <legend>Credit Items</legend>
+
+            <div class="table-container" id="credit-items">
+
+                <table>
+                    <tbody>
+
+                        {% for item in credit_items %}
+                        <tr>
+                            <td>{{ item.item_number }}</td>
+
+                            <td>{{ item.description }}</td>
+
+                            <td>
+                                <input
+                                    class="table-input qty-input"
+                                    type="number"
+                                    value="{{ item.quantity }}"
+                                    min="1"
+                                >
+                            </td>
+
+                            <td class="money">
+                                ${{ item.unit_price }}
+                            </td>
+
+                            <td class="money">
+                                ${{ item.credit_amount }}
+                            </td>
+
+                            <td class="remove-column">
+                                <button
+                                    type="button"
+                                    class="remove-button"
+                                    title="Remove item"
+                                >
+                                    
+                                </button>
+                            </td>
+                        </tr>
+
+                        {% empty %}
+
+                        <tr class="empty-row">
+                            <td colspan="6">
+                                No items added.
+                            </td>
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+                </table>
+
+            </div>
+
+        </fieldset>
+
+
+        <!-- MEMO -->
+        <fieldset>
+            <legend>Credit Information</legend>
+
+            <div class="form-row">
+                <label for="memo">Memo:</label>
+
+                <input
+                    id="memo"
+                    class="wide-input"
+                    type="text"
+                    name="memo"
+                    placeholder="Reason for credit...">
+            </div>
+        </fieldset>
+
+
+        <!-- ACTIONS -->
+        <div class="action-bar">
+
+            <button
+                type="submit"
+                id="invoice-button"
+                class="invoice-button"
+		hidden="true">
+                Invoice
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    /* logic for the item list is all contained here for simplicity */
+    let creditItems = [];
+    document.getElementById("add-item")
+	    .addEventListener("click", function () {
+        const itemNumber = document.getElementById("item-number").value;
+        const itemDescription = document.getElementById("item-name").value;
+
+	creditItems.push({item_number: itemNumber,
+			  description: itemDescription});
+	displayItems();
+    });
+
+    function displayItems() {
+	const tableBody = document.getElementById("credit-items");
+
+	tableBody.innerHTML = "";
+
+	if (creditItems.length === 0) {
+	    tableBody.innerHTML = `
+		    <tr>
+			<td colspan="2">No items added.</td>
+		    </tr>
+		`;
+	    return;
+	}
+
+	creditItems.forEach(function(item) {
+            const row = document.createElement("tr");
+
+            row.innerHTML = `
+	    	<td>${item.item_number}</td>
+	    	<td>${item.description}</td>
+		`;
+
+            tableBody.appendChild(row);
+        });
+    }
+
+    document.getElementById("customer-search")
+	    .addEventListener("click", function () {
+
+            const customerNumber =
+                document.getElementById("customer-number").value;
+
+            const customerName =
+                document.getElementById("customer-name");
+
+            if (!customerNumber) {
+                customerName.value = "";
+                return;
+            }
+
+            fetch(
+                `/search-customer/?customer_number=${encodeURIComponent(customerNumber)}`
+            )
+                .then(response => response.json())
+                .then(data => {
+                    if (data.found) {
+                        customerName.value = data.name;
+                    } else {
+                        customerName.value = "";
+                    }})
+                .catch(error => {
+                    console.error("Customer search failed:", error);
+                });
+        });
+
+    document.getElementById("item-search")
+	    .addEventListener("click", function () {
+
+            const itemNumber =
+                document.getElementById("item-number").value;
+
+            const itemName =
+                document.getElementById("item-name");
+
+            if (!itemNumber) {
+                itemName.value = "";
+                return;
+            }
+
+            fetch(
+                `/search-item/?item_number=${encodeURIComponent(itemNumber)}`
+            )
+                .then(response => response.json())
+                .then(data => {
+                    if (data.found) {
+			console.log(data.name)
+                        itemName.value = data.name;
+			console.log(itemName.value)
+                    } else {
+                        itemName.value = "";
+                    }
+
+                })
+                .catch(error => {
+                    console.error("Item search failed:", error);
+                });
+        });
+
+    </script>
+
+</body>
+</html>
